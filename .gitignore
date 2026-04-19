@@ -1,0 +1,28 @@
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Misc
+.DS_Store
+*.pem
+coverage/
+.vercel
+.turbo
+
+# IDE
+.vscode/
+.idea/
