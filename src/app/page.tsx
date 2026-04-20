@@ -33,6 +33,17 @@ export default function HomePage() {
     atlasBlocks: false,
   });
 
+  // Any species change — dropdown or search — snaps the map back to NYS.
+  // Skip the initial mount so the map stays at its default NYS view on load.
+  const isFirstRender = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setResetViewTrigger((t) => t + 1);
+  }, [speciesId]);
+
   const species = speciesById(speciesId) ?? SPECIES[0];
   const status: BreedingStatus | null = selected
     ? getBreedingStatus(speciesId, selected.geoid)
@@ -75,7 +86,6 @@ export default function HomePage() {
               value={speciesId}
               onChange={setSpeciesId}
               searchQuery={speciesSearch}
-              onSearchSelect={() => setResetViewTrigger((t) => t + 1)}
             />
           </div>
           <div className="flex-1 overflow-auto">
