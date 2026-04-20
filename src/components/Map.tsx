@@ -276,21 +276,26 @@ export function Map({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Base-map switch. Register the style.load listener BEFORE setStyle so it
-  // catches the upcoming load — map.once fires exactly once per switch and
-  // auto-removes. Without this pre-registration, setStyle sometimes beats
-  // the handler registration for raster-only styles and the county/atlas
-  // layers never come back.
+  // Base-map switch. 'style.load' is unreliable for raster-only styles —
+  // listen to 'styledata' instead and guard with isStyleLoaded(). The
+  // installers are idempotent (getSource/getLayer checks) so firing on
+  // every styledata tick after the style is ready is safe.
   React.useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    map.once("style.load", () => {
+    const onStyleData = () => {
+      if (!map.isStyleLoaded()) return;
       if (countiesRef.current) installCountyLayers(map);
       if (atlasRef.current) installAtlasLayers(map);
-    });
+    };
 
+    map.on("styledata", onStyleData);
     map.setStyle(stylesByKey[baseMap]);
+
+    return () => {
+      map.off("styledata", onStyleData);
+    };
   }, [baseMap, installCountyLayers, installAtlasLayers]);
 
   // Species change → update feature-state + the color expression.
