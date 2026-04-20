@@ -5,6 +5,7 @@ import maplibregl, { type Map as MLMap } from "maplibre-gl";
 import { stylesByKey, type BaseMapKey } from "@/lib/map-styles";
 import { STATUS_COLORS } from "@/lib/colors";
 import { getBreedingStatus, type BreedingStatus } from "@/data/breeding";
+import { buildAtlasGrid } from "@/lib/atlas-grid";
 
 const NY_BOUNDS: [[number, number], [number, number]] = [
   [-79.76, 40.49],
@@ -15,7 +16,17 @@ const FILL_LAYER = "counties-fill";
 const OUTLINE_LAYER = "counties-outline";
 const SOURCE_ID = "counties";
 
-export type LayerVisibility = { fill: boolean; outline: boolean };
+const ATLAS_SOURCE = "atlas-blocks";
+const ATLAS_LAYER = "atlas-blocks-outline";
+// Drop a real atlas-blocks GeoJSON URL here when available; until then we
+// fall back to the generated 0.5° grid.
+const ATLAS_URL: string | null = null;
+
+export type LayerVisibility = {
+  fill: boolean;
+  outline: boolean;
+  atlasBlocks: boolean;
+};
 
 type Props = {
   selectedSpeciesId: string;
@@ -34,6 +45,7 @@ export function Map({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<MLMap | null>(null);
   const countiesRef = React.useRef<GeoJSON.FeatureCollection | null>(null);
+  const atlasRef = React.useRef<GeoJSON.FeatureCollection | null>(null);
   const hoveredRef = React.useRef<string | null>(null);
 
   // Refs so our style.load handler can read current props without re-binding.
@@ -140,6 +152,32 @@ export function Map({
     });
   }, []);
 
+  // Atlas-blocks layer install. Called after each style.load once the atlas
+  // GeoJSON is available. Default visibility is off.
+  const installAtlasLayers = React.useCallback((map: MLMap) => {
+    const data = atlasRef.current;
+    if (!data) return;
+
+    if (!map.getSource(ATLAS_SOURCE)) {
+      map.addSource(ATLAS_SOURCE, { type: "geojson", data });
+    }
+    if (!map.getLayer(ATLAS_LAYER)) {
+      map.addLayer({
+        id: ATLAS_LAYER,
+        type: "line",
+        source: ATLAS_SOURCE,
+        paint: {
+          "line-color": "#6b7280",
+          "line-width": 0.5,
+          "line-opacity": 0.6,
+        },
+        layout: {
+          visibility: visRef.current.atlasBlocks ? "visible" : "none",
+        },
+      });
+    }
+  }, []);
+
   // One-time init.
   React.useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -166,9 +204,34 @@ export function Map({
         }
       });
 
+    // Atlas blocks: try the configured URL, fall back to a 0.5° grid.
+    const loadAtlas = (async () => {
+      if (ATLAS_URL) {
+        try {
+          const res = await fetch(ATLAS_URL);
+          if (res.ok) {
+            return (await res.json()) as GeoJSON.FeatureCollection;
+          }
+        } catch {
+          // swallow and fall back
+        }
+      }
+      return buildAtlasGrid();
+    })();
+
+    loadAtlas.then((data) => {
+      atlasRef.current = data;
+      if (map.isStyleLoaded()) {
+        installAtlasLayers(map);
+      } else {
+        map.once("style.load", () => installAtlasLayers(map));
+      }
+    });
+
     map.on("style.load", () => {
-      // Fires on every setStyle; re-install county layers.
+      // Fires on every setStyle; re-install custom sources and layers.
       if (countiesRef.current) installCountyLayers(map);
+      if (atlasRef.current) installAtlasLayers(map);
     });
 
     return () => {
@@ -215,6 +278,13 @@ export function Map({
         OUTLINE_LAYER,
         "visibility",
         layerVisibility.outline ? "visible" : "none"
+      );
+    }
+    if (map.getLayer(ATLAS_LAYER)) {
+      map.setLayoutProperty(
+        ATLAS_LAYER,
+        "visibility",
+        layerVisibility.atlasBlocks ? "visible" : "none"
       );
     }
   }, [layerVisibility]);

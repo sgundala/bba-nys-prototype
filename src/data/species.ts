@@ -10,6 +10,7 @@ export const SPECIES: Species[] = [
   { id: "rtha", commonName: "Red-tailed Hawk", scientificName: "Buteo jamaicensis" },
   { id: "bcch", commonName: "Black-capped Chickadee", scientificName: "Poecile atricapillus" },
   { id: "coye", commonName: "Common Yellowthroat", scientificName: "Geothlypis trichas" },
+  { id: "ospr", commonName: "Osprey", scientificName: "Pandion haliaetus" },
 ];
 
 export function speciesById(id: string): Species | undefined {

@@ -38,6 +38,17 @@ export function LayerPanel({ value, onChange }: Props) {
             />
             <span>County outline</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={value.atlasBlocks}
+              onChange={(e) =>
+                onChange({ ...value, atlasBlocks: e.target.checked })
+              }
+              className="h-4 w-4 accent-primary"
+            />
+            <span>Atlas blocks</span>
+          </label>
         </div>
 
         <div className="border-t pt-4">

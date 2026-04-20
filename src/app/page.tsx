@@ -22,12 +22,14 @@ const Map = dynamic(() => import("@/components/Map").then((m) => m.Map), {
 });
 
 export default function HomePage() {
-  const [speciesId, setSpeciesId] = React.useState<string>(SPECIES[0].id);
+  const [speciesId, setSpeciesId] = React.useState<string>("ospr");
+  const [speciesSearch, setSpeciesSearch] = React.useState<string>("");
   const [selected, setSelected] = React.useState<{ geoid: string; name: string } | null>(null);
   const [baseMap, setBaseMap] = React.useState<BaseMapKey>("streets");
   const [layerVisibility, setLayerVisibility] = React.useState<LayerVisibility>({
     fill: true,
     outline: true,
+    atlasBlocks: false,
   });
 
   const species = speciesById(speciesId) ?? SPECIES[0];
@@ -57,11 +59,22 @@ export default function HomePage() {
             style={{ gridTemplateColumns: "300px 1fr 260px" }}>
         {/* Left column: species picker + info panel */}
         <div className="flex flex-col gap-4 overflow-hidden">
-          <div className="rounded-lg border bg-background p-3 shadow-sm">
-            <label className="text-xs uppercase tracking-wide text-muted-foreground block mb-1.5">
+          <div className="rounded-lg border bg-background p-3 shadow-sm space-y-2">
+            <label className="text-xs uppercase tracking-wide text-muted-foreground block">
               Species
             </label>
-            <SpeciesDropdown value={speciesId} onChange={setSpeciesId} />
+            <input
+              type="text"
+              value={speciesSearch}
+              onChange={(e) => setSpeciesSearch(e.target.value)}
+              placeholder="Search species…"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <SpeciesDropdown
+              value={speciesId}
+              onChange={setSpeciesId}
+              searchQuery={speciesSearch}
+            />
           </div>
           <div className="flex-1 overflow-auto">
             <CountyInfoPanel county={selected} species={species} status={status} />
