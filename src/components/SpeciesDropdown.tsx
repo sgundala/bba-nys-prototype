@@ -14,9 +14,18 @@ type Props = {
   value: string;
   onChange: (id: string) => void;
   searchQuery?: string;
+  // Fires only when a species is selected via search-narrow auto-select,
+  // not when the user picks from the dropdown. Parent uses this to reset
+  // the map view back to NYS bounds.
+  onSearchSelect?: (id: string) => void;
 };
 
-export function SpeciesDropdown({ value, onChange, searchQuery = "" }: Props) {
+export function SpeciesDropdown({
+  value,
+  onChange,
+  searchQuery = "",
+  onSearchSelect,
+}: Props) {
   const filtered = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return SPECIES;
@@ -27,12 +36,14 @@ export function SpeciesDropdown({ value, onChange, searchQuery = "" }: Props) {
     );
   }, [searchQuery]);
 
-  // Auto-select when the filter narrows to exactly one match.
+  // Auto-select when the filter narrows to exactly one match. This path is
+  // the "search-driven" selection — notify onSearchSelect as well as onChange.
   React.useEffect(() => {
     if (filtered.length === 1 && filtered[0].id !== value) {
       onChange(filtered[0].id);
+      onSearchSelect?.(filtered[0].id);
     }
-  }, [filtered, value, onChange]);
+  }, [filtered, value, onChange, onSearchSelect]);
 
   return (
     <Select value={value} onValueChange={onChange}>

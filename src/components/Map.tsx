@@ -34,13 +34,47 @@ type Props = {
   baseMap: BaseMapKey;
   layerVisibility: LayerVisibility;
   onCountyClick: (geoid: string, name: string) => void;
+  // Bump this number from the parent to animate the map back to NYS bounds.
+  // Used by the search bar; dropdown selection does NOT bump it.
+  resetSignal?: number;
 };
+
+// Custom MapLibre control that fits the view back to the NYS bbox.
+class HomeControl implements maplibregl.IControl {
+  private _map: MLMap | undefined;
+  private _container: HTMLElement | undefined;
+
+  onAdd(map: MLMap): HTMLElement {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.title = "Reset to New York State";
+    btn.setAttribute("aria-label", "Reset to New York State");
+    btn.innerHTML = "⌂";
+    btn.style.fontSize = "16px";
+    btn.style.cursor = "pointer";
+    btn.style.lineHeight = "1";
+    btn.addEventListener("click", () => {
+      this._map?.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
+    });
+    this._container.appendChild(btn);
+    return this._container;
+  }
+
+  onRemove(): void {
+    this._container?.parentNode?.removeChild(this._container);
+    this._map = undefined;
+  }
+}
 
 export function Map({
   selectedSpeciesId,
   baseMap,
   layerVisibility,
   onCountyClick,
+  resetSignal,
 }: Props) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<MLMap | null>(null);
@@ -191,6 +225,7 @@ export function Map({
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new HomeControl(), "top-right");
 
     // Load the counties GeoJSON once; reuse across style swaps.
     fetch("/ny-counties.geojson")
@@ -288,6 +323,18 @@ export function Map({
       );
     }
   }, [layerVisibility]);
+
+  // Reset-view signal: animate back to NYS bounds whenever the parent bumps
+  // the counter. Skip the initial mount (undefined/0 on first render).
+  const lastResetRef = React.useRef<number | undefined>(resetSignal);
+  React.useEffect(() => {
+    if (resetSignal === undefined) return;
+    if (lastResetRef.current === resetSignal) return;
+    lastResetRef.current = resetSignal;
+    const map = mapRef.current;
+    if (!map) return;
+    map.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
+  }, [resetSignal]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }
