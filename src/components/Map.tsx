@@ -35,8 +35,9 @@ type Props = {
   layerVisibility: LayerVisibility;
   onCountyClick: (geoid: string, name: string) => void;
   // Bump this number from the parent to animate the map back to NYS bounds.
-  // Used by the search bar; dropdown selection does NOT bump it.
-  resetSignal?: number;
+  // Used by the search bar; dropdown selection does NOT bump it. Starts at 0;
+  // any value > 0 triggers a reset.
+  resetViewTrigger: number;
 };
 
 // Custom MapLibre control that fits the view back to the NYS bbox.
@@ -74,13 +75,14 @@ export function Map({
   baseMap,
   layerVisibility,
   onCountyClick,
-  resetSignal,
+  resetViewTrigger,
 }: Props) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<MLMap | null>(null);
   const countiesRef = React.useRef<GeoJSON.FeatureCollection | null>(null);
   const atlasRef = React.useRef<GeoJSON.FeatureCollection | null>(null);
   const hoveredRef = React.useRef<string | null>(null);
+  const [tilesLoading, setTilesLoading] = React.useState(true);
 
   // Refs so our style.load handler can read current props without re-binding.
   const speciesRef = React.useRef(selectedSpeciesId);
@@ -269,6 +271,10 @@ export function Map({
       if (atlasRef.current) installAtlasLayers(map);
     });
 
+    // Loading indicator: show overlay while tiles are in flight.
+    map.on("dataloading", () => setTilesLoading(true));
+    map.on("idle", () => setTilesLoading(false));
+
     return () => {
       map.remove();
       mapRef.current = null;
@@ -324,19 +330,25 @@ export function Map({
     }
   }, [layerVisibility]);
 
-  // Reset-view signal: animate back to NYS bounds whenever the parent bumps
-  // the counter. Skip the initial mount (undefined/0 on first render).
-  const lastResetRef = React.useRef<number | undefined>(resetSignal);
+  // Reset-view trigger: animate back to NYS bounds whenever the parent bumps
+  // the counter. Starts at 0 (skip the initial mount).
   React.useEffect(() => {
-    if (resetSignal === undefined) return;
-    if (lastResetRef.current === resetSignal) return;
-    lastResetRef.current = resetSignal;
-    const map = mapRef.current;
-    if (!map) return;
-    map.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
-  }, [resetSignal]);
+    if (resetViewTrigger === 0) return;
+    mapRef.current?.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
+  }, [resetViewTrigger]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+      {tilesLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-10 pointer-events-none">
+          <span className="text-sm text-muted-foreground animate-pulse">
+            Loading map…
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function buildColorExpression(): maplibregl.ExpressionSpecification {

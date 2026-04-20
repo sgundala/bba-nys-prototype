@@ -26,7 +26,7 @@ export default function HomePage() {
   const [speciesSearch, setSpeciesSearch] = React.useState<string>("");
   const [selected, setSelected] = React.useState<{ geoid: string; name: string } | null>(null);
   const [baseMap, setBaseMap] = React.useState<BaseMapKey>("streets");
-  const [resetSignal, setResetSignal] = React.useState<number>(0);
+  const [resetViewTrigger, setResetViewTrigger] = React.useState<number>(0);
   const [layerVisibility, setLayerVisibility] = React.useState<LayerVisibility>({
     fill: true,
     outline: true,
@@ -75,7 +75,7 @@ export default function HomePage() {
               value={speciesId}
               onChange={setSpeciesId}
               searchQuery={speciesSearch}
-              onSearchSelect={() => setResetSignal((n) => n + 1)}
+              onSearchSelect={() => setResetViewTrigger((t) => t + 1)}
             />
           </div>
           <div className="flex-1 overflow-auto">
@@ -95,7 +95,7 @@ export default function HomePage() {
               baseMap={baseMap}
               layerVisibility={layerVisibility}
               onCountyClick={(geoid, name) => setSelected({ geoid, name })}
-              resetSignal={resetSignal}
+              resetViewTrigger={resetViewTrigger}
             />
           </div>
         </div>
