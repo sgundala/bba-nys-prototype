@@ -265,12 +265,6 @@ export function Map({
       }
     });
 
-    map.on("style.load", () => {
-      // Fires on every setStyle; re-install custom sources and layers.
-      if (countiesRef.current) installCountyLayers(map);
-      if (atlasRef.current) installAtlasLayers(map);
-    });
-
     // Loading indicator: show overlay while tiles are in flight.
     map.on("dataloading", () => setTilesLoading(true));
     map.on("idle", () => setTilesLoading(false));
@@ -282,12 +276,22 @@ export function Map({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Base-map switch.
+  // Base-map switch. Register the style.load listener BEFORE setStyle so it
+  // catches the upcoming load — map.once fires exactly once per switch and
+  // auto-removes. Without this pre-registration, setStyle sometimes beats
+  // the handler registration for raster-only styles and the county/atlas
+  // layers never come back.
   React.useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    map.once("style.load", () => {
+      if (countiesRef.current) installCountyLayers(map);
+      if (atlasRef.current) installAtlasLayers(map);
+    });
+
     map.setStyle(stylesByKey[baseMap]);
-  }, [baseMap]);
+  }, [baseMap, installCountyLayers, installAtlasLayers]);
 
   // Species change → update feature-state + the color expression.
   React.useEffect(() => {
