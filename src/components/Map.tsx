@@ -41,6 +41,14 @@ type Props = {
 };
 
 // Custom MapLibre control that fits the view back to the NYS bbox.
+// Inline SVG is used instead of the "⌂" glyph because font fallback is
+// unreliable and the glyph often rendered invisibly.
+const HOME_ICON_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+  <polyline points="9 22 9 12 15 12 15 22"/>
+</svg>`;
+
 class HomeControl implements maplibregl.IControl {
   private _map: MLMap | undefined;
   private _container: HTMLElement | undefined;
@@ -49,17 +57,29 @@ class HomeControl implements maplibregl.IControl {
     this._map = map;
     this._container = document.createElement("div");
     this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
+
     const btn = document.createElement("button");
     btn.type = "button";
     btn.title = "Reset to New York State";
     btn.setAttribute("aria-label", "Reset to New York State");
-    btn.innerHTML = "⌂";
-    btn.style.fontSize = "16px";
+    // Override the default 29x29 control button sizing — inline styles beat
+    // the .maplibregl-ctrl-group button class rule.
+    btn.style.width = "36px";
+    btn.style.height = "36px";
+    btn.style.padding = "0";
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
     btn.style.cursor = "pointer";
-    btn.style.lineHeight = "1";
-    btn.addEventListener("click", () => {
-      this._map?.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
+    btn.innerHTML = HOME_ICON_SVG;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const m = this._map;
+      if (!m) return;
+      m.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
     });
+
     this._container.appendChild(btn);
     return this._container;
   }
