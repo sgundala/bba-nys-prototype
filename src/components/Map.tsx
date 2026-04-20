@@ -52,6 +52,13 @@ const HOME_ICON_SVG = `
 class HomeControl implements maplibregl.IControl {
   private _map: MLMap | undefined;
   private _container: HTMLElement | undefined;
+  private _onReset: () => void;
+
+  // onReset runs after fitBounds — use it to re-install any custom
+  // sources/layers so Home is always a full visual reset.
+  constructor(onReset: () => void) {
+    this._onReset = onReset;
+  }
 
   onAdd(map: MLMap): HTMLElement {
     this._map = map;
@@ -78,6 +85,7 @@ class HomeControl implements maplibregl.IControl {
       const m = this._map;
       if (!m) return;
       m.fitBounds(NY_BOUNDS, { padding: 20, duration: 800 });
+      this._onReset();
     });
 
     this._container.appendChild(btn);
@@ -247,7 +255,16 @@ export function Map({
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(new HomeControl(), "top-right");
+    map.addControl(
+      new HomeControl(() => {
+        // Safety net: re-install county + atlas layers after Home click so
+        // the map always returns to its expected state, even if a prior
+        // style switch failed to restore them.
+        if (countiesRef.current) installCountyLayers(map);
+        if (atlasRef.current) installAtlasLayers(map);
+      }),
+      "top-right"
+    );
 
     // Load the counties GeoJSON once; reuse across style swaps.
     fetch("/ny-counties.geojson")
